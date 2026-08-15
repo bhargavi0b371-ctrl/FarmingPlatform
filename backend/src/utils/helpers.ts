@@ -18,6 +18,11 @@ export const formatPhoneNumber = (phone: string): string => {
   return phone.startsWith('+') ? phone : `+${phone}`;
 };
 
+export const isEmailAddress = (value: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(value.trim());
+};
+
 export const getSeason = (date: Date): string => {
   const month = date.getMonth();
   if (month >= 2 && month <= 4) return 'spring';

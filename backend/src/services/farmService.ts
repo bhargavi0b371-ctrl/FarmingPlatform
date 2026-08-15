@@ -37,6 +37,15 @@ export class FarmService {
     if (error) throw new Error('Failed to fetch crops');
     return data as Crop[];
   }
+
+  async deleteFarm(farmId: string, userId: string): Promise<void> {
+    const { error } = await supabase.from('farms')
+      .update({ is_active: false })
+      .eq('id', farmId)
+      .eq('user_id', userId)
+      .eq('is_active', true);
+    if (error) throw new Error('Failed to remove farm');
+  }
 }
 
 export default new FarmService();

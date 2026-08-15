@@ -1,0 +1,581 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User roles
+enum UserRole {
+  FARMER
+  EXPERT
+  ADMIN
+}
+
+// Crop status
+enum CropStatus {
+  PLANNING
+  PLANTING
+  GROWING
+  HARVESTING
+  HARVESTED
+}
+
+// Pest severity
+enum SeverityLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// Advisory type
+enum AdvisoryType {
+  IRRIGATION
+  FERTILIZER
+  PEST
+  DISEASE
+  HARVEST
+  GENERAL
+}
+
+// Advisory severity
+enum AlertSeverity {
+  INFO
+  WARNING
+  ALERT
+}
+
+// Notification type
+enum NotificationType {
+  WEATHER
+  PEST_ALERT
+  MARKET
+  ADVISORY
+  SYSTEM
+}
+
+// Sensor type
+enum SensorType {
+  SOIL_MOISTURE
+  TEMPERATURE
+  HUMIDITY
+  LIGHT
+  PH
+}
+
+// ============================================
+// Users table
+// ============================================
+model User {
+  id              String   @id @default(cuid())
+  phone           String   @unique
+  role            UserRole @default(FARMER)
+  language        String   @default("en")
+  name            String?
+  email           String?  @unique
+  avatarUrl       String?
+  verified        Boolean  @default(false)
+  bio             String?
+  farmSizeAcres   Decimal? @db.Decimal(10, 2)
+  soilType        String?
+  cropsGrown      String[]
+  yearsExperience Int?
+  fcmToken        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  farms            Farm[]
+  advisories       Advisory[]
+  soilReports      SoilReport[]
+  pestDetections   PestDetection[]
+  weatherLogs      WeatherLog[]
+  notifications    Notification[]
+  chatHistory      ChatHistory[]
+  feedback         Feedback[]
+  expertAdvisories Advisory[]      @relation("CreatedByExpert")
+  otpTokens        OtpToken[]
+  irrigationLogs   IrrigationLog[]
+  cropHealthLogs   CropHealthLog[]
+
+  @@index([phone])
+  @@index([role])
+}
+
+// ============================================
+// OTP Tokens table
+// ============================================
+model OtpToken {
+  id        String    @id @default(cuid())
+  phone     String
+  otpCode   String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([phone])
+  @@index([expiresAt])
+  @@index([userId])
+}
+
+// ============================================
+// Farms table
+// ============================================
+model Farm {
+  id               String   @id @default(cuid())
+  userId           String
+  name             String
+  address          String?
+  areaAcres        Decimal  @db.Decimal(10, 2)
+  soilType         String?
+  waterSource      String?
+  irrigationMethod String?
+  soilPh           Decimal? @db.Decimal(3, 1)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  crops       Crop[]
+  soilReports SoilReport[]
+  iotLogs     IoTSensorLog[]
+
+  @@index([userId])
+}
+
+// ============================================
+// Crops table
+// ============================================
+model Crop {
+  id              String     @id @default(cuid())
+  farmId          String
+  name            String
+  variety         String?
+  plantingDate    DateTime
+  expectedHarvest DateTime?
+  harvestedDate   DateTime?
+  status          CropStatus @default(PLANTING)
+  yieldKg         Decimal?   @db.Decimal(10, 2)
+  notes           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  // Relations
+  farm             Farm              @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  advisories       Advisory[]
+  pestDetections   PestDetection[]
+  soilReports      SoilReport[]
+  yieldPredictions YieldPrediction[]
+  cropJourneys     CropJourney[]
+
+  @@index([farmId])
+}
+
+// ============================================
+// Soil Reports table
+// ============================================
+model SoilReport {
+  id               String    @id @default(cuid())
+  userId           String
+  farmId           String?
+  cropId           String?
+  nitrogenPpm      Decimal?  @db.Decimal(6, 2)
+  phosphorusPpm    Decimal?  @db.Decimal(6, 2)
+  potassiumPpm     Decimal?  @db.Decimal(6, 2)
+  ph               Decimal?  @db.Decimal(3, 1)
+  texture          String?
+  organicMatterPct Decimal?  @db.Decimal(5, 2)
+  moisturePct      Decimal?  @db.Decimal(5, 2)
+  ecDsM            Decimal?  @db.Decimal(6, 2)
+  recommendations  String?
+  labName          String?
+  sampleDate       DateTime?
+  createdAt        DateTime  @default(now())
+
+  // Relations
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  farm Farm? @relation(fields: [farmId], references: [id], onDelete: SetNull)
+  crop Crop? @relation(fields: [cropId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([farmId])
+}
+
+// ============================================
+// Pest Detections table
+// ============================================
+model PestDetection {
+  id                String        @id @default(cuid())
+  userId            String
+  cropId            String?
+  imageUrl          String
+  pestName          String?
+  diseaseName       String?
+  confidence        Decimal?      @db.Decimal(5, 4)
+  symptoms          String?
+  organicTreatment  String?
+  chemicalTreatment String?
+  prevention        String?
+  severity          SeverityLevel @default(MEDIUM)
+  modelVersion      String?
+  createdAt         DateTime      @default(now())
+
+  // Relations
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  crop   Crop?       @relation(fields: [cropId], references: [id], onDelete: SetNull)
+  images CropImage[]
+
+  @@index([userId])
+  @@index([cropId])
+  @@index([pestName])
+}
+
+// ============================================
+// Crop Images table
+// ============================================
+model CropImage {
+  id           String   @id @default(cuid())
+  detectionId  String
+  url          String
+  thumbnailUrl String?
+  uploadedAt   DateTime @default(now())
+
+  // Relations
+  detection PestDetection @relation(fields: [detectionId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// Advisories table
+// ============================================
+model Advisory {
+  id                String        @id @default(cuid())
+  userId            String
+  cropId            String?
+  title             String
+  content           String
+  type              AdvisoryType  @default(GENERAL)
+  severity          AlertSeverity @default(INFO)
+  aiGenerated       Boolean       @default(true)
+  createdByExpertId String?
+  relevantUntil     DateTime?
+  readAt            DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Relations
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  crop     Crop?      @relation(fields: [cropId], references: [id], onDelete: SetNull)
+  expert   User?      @relation("CreatedByExpert", fields: [createdByExpertId], references: [id], onDelete: SetNull)
+  feedback Feedback[]
+
+  @@index([userId])
+  @@index([cropId])
+}
+
+// ============================================
+// Weather Logs table
+// ============================================
+model WeatherLog {
+  id                    String   @id @default(cuid())
+  userId                String
+  temperatureC          Decimal? @db.Decimal(5, 2)
+  feelsLikeC            Decimal? @db.Decimal(5, 2)
+  humidityPercent       Int?
+  rainfallMm            Decimal? @db.Decimal(6, 2)
+  windSpeedKmh          Decimal? @db.Decimal(5, 2)
+  windDirection         String?
+  atmosphericPressureMb Int?
+  cloudCoverPercent     Int?
+  weatherCondition      String?
+  uvIndex               Decimal? @db.Decimal(3, 1)
+  timestamp             DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([timestamp])
+}
+
+// ============================================
+// Market Prices table
+// ============================================
+model MarketPrice {
+  id                 String   @id @default(cuid())
+  cropName           String
+  mandiName          String
+  pricePerUnit       Decimal  @db.Decimal(10, 2)
+  unit               String   @default("kg")
+  priceChangePercent Decimal? @db.Decimal(6, 3)
+  previousPrice      Decimal? @db.Decimal(10, 2)
+  trend              String?
+  quality            String?
+  supplyVolume       Int?
+  updatedAt          DateTime @default(now()) @updatedAt
+  source             String?
+
+  @@index([cropName])
+  @@index([mandiName])
+  @@index([updatedAt])
+}
+
+// ============================================
+// Notifications table
+// ============================================
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType @default(SYSTEM)
+  imageUrl  String?
+  actionUrl String?
+  read      Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+// ============================================
+// Chat History table
+// ============================================
+model ChatHistory {
+  id          String   @id @default(cuid())
+  userId      String
+  message     String
+  response    String
+  language    String   @default("en")
+  sessionId   String?
+  intent      String?
+  confidence  Decimal? @db.Decimal(3, 2)
+  voiceInput  Boolean  @default(false)
+  voiceOutput Boolean  @default(false)
+  timestamp   DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([timestamp])
+}
+
+// ============================================
+// Feedback table
+// ============================================
+model Feedback {
+  id          String   @id @default(cuid())
+  userId      String
+  advisoryId  String?
+  rating      Int?
+  comment     String?
+  helpful     Boolean?
+  implemented Boolean?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  advisory Advisory? @relation(fields: [advisoryId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([advisoryId])
+}
+
+// ============================================
+// Government Schemes table
+// ============================================
+model GovernmentScheme {
+  id                  String    @id @default(cuid())
+  name                String
+  description         String?
+  eligibilityCriteria String?
+  benefits            String?
+  applicationUrl      String?
+  deadline            DateTime?
+  stateApplicable     String[]
+  cropApplicable      String[]
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+// ============================================
+// IoT Sensor Logs table
+// ============================================
+model IoTSensorLog {
+  id         String     @id @default(cuid())
+  farmId     String
+  sensorId   String?
+  sensorType SensorType @default(SOIL_MOISTURE)
+  value      Decimal    @db.Decimal(8, 2)
+  unit       String
+  timestamp  DateTime   @default(now())
+
+  // Relations
+  farm Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  @@index([farmId])
+  @@index([timestamp])
+}
+
+// ============================================
+// Yield Predictions table
+// ============================================
+model YieldPrediction {
+  id               String    @id @default(cuid())
+  cropId           String
+  predictedYieldKg Decimal   @db.Decimal(10, 2)
+  confidence       Decimal   @db.Decimal(3, 2)
+  factors          Json?
+  modelVersion     String?
+  predictionDate   DateTime?
+  actualYieldKg    Decimal?  @db.Decimal(10, 2)
+  createdAt        DateTime  @default(now())
+
+  // Relations
+  crop Crop @relation(fields: [cropId], references: [id], onDelete: Cascade)
+
+  @@index([cropId])
+}
+
+// ============================================
+// Crop Journey and related models
+// ============================================
+
+model CropJourney {
+  id               String          @id @default(cuid())
+  cropId           String
+  currentStage     GrowthStageType
+  healthScore      Int             @default(100)
+  overallProgress  Int             @default(0) // percentage 0-100
+  estimatedHarvest DateTime?
+  expectedYieldKg  Decimal?        @db.Decimal(10, 2)
+  notes            String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  // Relations
+  crop               Crop                @relation(fields: [cropId], references: [id], onDelete: Cascade)
+  stages             GrowthStage[]
+  irrigationLogs     IrrigationLog[]
+  healthLogs         CropHealthLog[]
+  tasks              FarmerTask[]
+  timelineEvents     CropTimelineEvent[]
+  harvestPredictions HarvestPrediction[]
+
+  @@index([cropId])
+}
+
+enum GrowthStageType {
+  SEED_SOWN
+  GERMINATION
+  EARLY_GROWTH
+  VEGETATIVE
+  FLOWERING
+  FRUITING
+  RIPENING
+  HARVEST_READY
+}
+
+model GrowthStage {
+  id                   String          @id @default(cuid())
+  journeyId            String
+  type                 GrowthStageType
+  status               String          @default("pending")
+  startedAt            DateTime?
+  expectedDurationDays Int?
+  completedAt          DateTime?
+  percentCompleted     Int             @default(0)
+  aiRecommendation     String?
+
+  journey CropJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  @@index([journeyId])
+}
+
+model IrrigationLog {
+  id           String   @id @default(cuid())
+  journeyId    String
+  userId       String
+  irrigatedAt  DateTime @default(now())
+  volumeLiters Decimal? @db.Decimal(10, 2)
+  note         String?
+
+  journey CropJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([journeyId])
+  @@index([userId])
+}
+
+model CropHealthLog {
+  id               String   @id @default(cuid())
+  journeyId        String
+  userId           String
+  loggedAt         DateTime @default(now())
+  healthScore      Int
+  nutrientStatus   String?
+  pestRiskLevel    String?
+  diseaseRiskLevel String?
+  note             String?
+
+  journey CropJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([journeyId])
+  @@index([userId])
+}
+
+model HarvestPrediction {
+  id              String   @id @default(cuid())
+  journeyId       String
+  predictedAt     DateTime @default(now())
+  estimatedDate   DateTime
+  expectedYieldKg Decimal? @db.Decimal(10, 2)
+  confidence      Decimal? @db.Decimal(3, 2)
+  factors         Json?
+
+  journey CropJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  @@index([journeyId])
+}
+
+model FarmerTask {
+  id          String    @id @default(cuid())
+  journeyId   String
+  title       String
+  description String?
+  dueAt       DateTime?
+  completed   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  journey CropJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  @@index([journeyId])
+}
+
+model CropTimelineEvent {
+  id        String   @id @default(cuid())
+  journeyId String
+  eventType String
+  eventAt   DateTime @default(now())
+  details   String?
+
+  journey CropJourney @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  @@index([journeyId])
+}

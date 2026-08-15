@@ -6,3 +6,4 @@ export { default as pestDetectionService } from './pestDetectionService.js';
 export { default as marketService } from './marketService.js';
 export { default as chatbotService } from './chatbotService.js';
 export { default as notificationService } from './notificationService.js';
+export { default as cropJourneyService } from './cropJourneyService.js';

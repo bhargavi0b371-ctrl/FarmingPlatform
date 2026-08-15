@@ -27,9 +27,14 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
 }
 
 export const api = {
+  health: {
+    getStatus: () => fetchApi('/health'),
+  },
   auth: {
     sendOTP: (phone: string) => fetchApi('/auth/send-otp', { method: 'POST', body: JSON.stringify({ phone }) }),
     verifyOTP: (phone: string, otp: string) => fetchApi('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ phone, otp }) }),
+    getProfile: () => fetchApi('/auth/profile'),
+    updateProfile: (data: Record<string, unknown>) => fetchApi('/auth/profile', { method: 'PUT', body: JSON.stringify(data) }),
   },
   weather: {
     getCurrent: (lat: number, lon: number) => fetchApi(`/weather/current?lat=${lat}&lon=${lon}`),
@@ -42,6 +47,7 @@ export const api = {
   farms: {
     getAll: () => fetchApi('/farms'),
     create: (data: Record<string, unknown>) => fetchApi('/farms', { method: 'POST', body: JSON.stringify(data) }),
+    delete: (farmId: string) => fetchApi(`/farms/${farmId}`, { method: 'DELETE' }),
   },
   advisories: {
     getAll: () => fetchApi('/advisories'),
@@ -58,6 +64,15 @@ export const api = {
   notifications: {
     getAll: () => fetchApi('/notifications'),
     getUnreadCount: () => fetchApi('/notifications/unread-count'),
+  },
+  cropJourney: {
+    create: (data: Record<string, unknown>) => fetchApi('/crop-journeys', { method: 'POST', body: JSON.stringify(data) }),
+    list: () => fetchApi('/crop-journeys'),
+    get: (id: string) => fetchApi(`/crop-journeys/${id}`),
+    updateProgress: (id: string, payload: Record<string, unknown>) => fetchApi(`/crop-journeys/${id}/progress`, { method: 'PATCH', body: JSON.stringify(payload) }),
+    addIrrigation: (id: string, payload: Record<string, unknown>) => fetchApi(`/crop-journeys/${id}/irrigation`, { method: 'POST', body: JSON.stringify(payload) }),
+    addHealth: (id: string, payload: Record<string, unknown>) => fetchApi(`/crop-journeys/${id}/health`, { method: 'POST', body: JSON.stringify(payload) }),
+    timeline: (id: string) => fetchApi(`/crop-journeys/${id}/timeline`),
   },
 };
 

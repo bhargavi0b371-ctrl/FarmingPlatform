@@ -9,4 +9,5 @@ router.get('/', farmController.getFarms);
 router.get('/:farmId', farmController.getFarmById);
 router.post('/:farmId/crops', [body('name').notEmpty()], validate, farmController.addCrop);
 router.get('/:farmId/crops', farmController.getCrops);
+router.delete('/:farmId', farmController.deleteFarm);
 export default router;

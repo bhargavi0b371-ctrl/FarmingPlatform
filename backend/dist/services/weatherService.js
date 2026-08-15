@@ -3,11 +3,37 @@ import { generateUUID } from '../utils/helpers.js';
 export class WeatherService {
     apiKey = config.openweather.apiKey;
     baseUrl = config.openweather.baseUrl;
+    async fetchWithRetry(url, attempts = 3, delayMs = 800) {
+        let lastError;
+        for (let i = 0; i < attempts; i++) {
+            try {
+                const res = await fetch(url);
+                return res;
+            }
+            catch (err) {
+                lastError = err;
+                // small backoff
+                await new Promise((r) => setTimeout(r, delayMs));
+            }
+        }
+        throw lastError;
+    }
     async getCurrentWeather(lat, lon) {
-        const response = await fetch(`${this.baseUrl}/weather?lat=${lat}&lon=${lon}&appid=${this.apiKey}&units=metric`);
-        if (!response.ok)
-            throw new Error('Failed to fetch weather');
-        const data = await response.json();
+        if (!this.apiKey)
+            throw new Error('OpenWeather API key is not configured');
+        const url = `${this.baseUrl}/weather?lat=${lat}&lon=${lon}&appid=${this.apiKey}&units=metric`;
+        let response;
+        try {
+            response = await this.fetchWithRetry(url, 3, 800);
+        }
+        catch (err) {
+            throw new Error(`Failed to fetch weather (network): ${err?.message ?? String(err)}`);
+        }
+        if (!response.ok) {
+            const body = await response.text().catch(() => '<no body>');
+            throw new Error(`Failed to fetch weather: ${response.status} ${response.statusText} - ${body}`);
+        }
+        const data = (await response.json());
         return {
             id: generateUUID(),
             latitude: lat,

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/index.js';
 import { JwtPayload, ApiResponse } from '../types/index.js';
-import { supabase } from '../config/supabase.js';
+import { prisma } from '../config/prisma.js';
 
 export interface AuthRequest extends Request {
   user?: JwtPayload;
@@ -21,12 +21,11 @@ export const authenticate = async (
     }
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, config.jwt.secret) as JwtPayload;
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, phone, role, is_active')
-      .eq('id', decoded.userId)
-      .maybeSingle();
-    if (error || !user) {
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, phone: true, role: true, verified: true },
+    });
+    if (!user) {
       res.status(401).json({ success: false, error: 'Invalid token.' } as ApiResponse);
       return;
     }

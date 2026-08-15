@@ -21,6 +21,7 @@ export interface User {
   role: UserRole;
   language: Language;
   profile_image?: string;
+  fcmToken?: string;
   is_active: boolean;
   is_verified: boolean;
   last_login?: Date;

@@ -62,3 +62,18 @@ export const getCrops = async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 };
+export const deleteFarm = async (req, res) => {
+    try {
+        const userId = req.user?.userId;
+        const { farmId } = req.params;
+        if (!userId) {
+            res.status(401).json({ success: false, error: 'Unauthorized' });
+            return;
+        }
+        await farmService.deleteFarm(farmId, userId);
+        res.json({ success: true, data: { deleted: true } });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};

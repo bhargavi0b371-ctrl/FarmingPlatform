@@ -1,2 +1,23 @@
+# dependencies
 node_modules/
+
+# environment files
 .env
+.env.*
+!.env.example
+
+# project-specific env files
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# build output and generated artifacts
+backend/dist/
+frontend/.next/
+*.tsbuildinfo
+
+# optional local overrides
+*.local

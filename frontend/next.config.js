@@ -1,4 +1,15 @@
 module.exports = {
   reactStrictMode: true,
-  images: { domains: ['via.placeholder.com'] },
+  turbopack: {
+    root: __dirname,
+  },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'via.placeholder.com',
+        pathname: '/**',
+      },
+    ],
+  },
 };

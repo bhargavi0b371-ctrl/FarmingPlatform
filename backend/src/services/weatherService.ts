@@ -17,10 +17,38 @@ export class WeatherService {
   private apiKey = config.openweather.apiKey;
   private baseUrl = config.openweather.baseUrl;
 
+  private async fetchWithRetry(url: string, attempts = 3, delayMs = 800): Promise<Response> {
+    let lastError: any;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const res = await fetch(url);
+        return res;
+      } catch (err) {
+        lastError = err;
+        // small backoff
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    }
+    throw lastError;
+  }
+
   async getCurrentWeather(lat: number, lon: number): Promise<WeatherLog> {
-    const response = await fetch(`${this.baseUrl}/weather?lat=${lat}&lon=${lon}&appid=${this.apiKey}&units=metric`);
-    if (!response.ok) throw new Error('Failed to fetch weather');
-    const data = await response.json() as WeatherApiResponse;
+    if (!this.apiKey) throw new Error('OpenWeather API key is not configured');
+
+    const url = `${this.baseUrl}/weather?lat=${lat}&lon=${lon}&appid=${this.apiKey}&units=metric`;
+    let response: Response;
+    try {
+      response = await this.fetchWithRetry(url, 3, 800);
+    } catch (err: any) {
+      throw new Error(`Failed to fetch weather (network): ${err?.message ?? String(err)}`);
+    }
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => '<no body>');
+      throw new Error(`Failed to fetch weather: ${response.status} ${response.statusText} - ${body}`);
+    }
+
+    const data = (await response.json()) as WeatherApiResponse;
 
     return {
       id: generateUUID(),
